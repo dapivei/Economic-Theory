@@ -1,0 +1,552 @@
+---
+output: 
+  html_document:
+    df_print: paged
+    fig_caption: true
+---
+
+# Los determinantes de la esperanza de vida
+
+***
+
+*Nombre: Daniela Pinto Veizaga* 
+
+\hspace
+
+
+*Fecha de entrega: 3 de abril*
+
+\hspace
+
+*Materia: Econometría*
+
+***
+<div align="justify">
+### Introducción
+
+La **esperanza de vida**, medida como el valor esperado de la duración de vida de la población en un determinado país, es un indicador que permite resumir y caracterizar la situación de los países (o al menos eso se esperaría). 
+
+Por ejemplo, ante un mejor sistema educativo se espera que las externalidades positivas como mayor educación cívica y ética, menos demanda de servicios del estado, etc., provoquen que la expectativa de vida aumente. Otros estudios revelan que la inversión de mayores proporciones del Producto Interno Bruto (PIB) en salud, provoca que la expectativa de vida aumente. 
+
+Surge entonces una pregunta natural: 
+
+>¿Qué tanto aportan cada uno de los elementos antes nombrados en el incremento de la esperanza de vida?
+
+Responder la pregunta anterior, es el propósito principal del siguiente análisis exploratorio que se presenta a continuación. Para ello, en la siguiente sección, titulada *Marco Teórico*, se presentan algunas de las teorías relaciones con la economía de la salud que son el marco conceptual que guió al presente trabajo para la identificación de las variables que podrían resultar relevantes en este ejercicio. En la sección titulada *Modelo*, se presenta la descripción de la base de datos, las transformaciones aplicadas, los resultados y los test de los supuesto básicos del modelo empleado: mínimos cuadrados ordinarios. Finalmente, con base en los resultados encontrados, se presentan las conclusiones y posibles recomendaciones de política pública.
+
+### Marco Teórico
+
+La esperanza de vida ha presentado un aumento en años recientes. Ello se debe, entre otras cosas, a la disminución de la muerte infantil [1]. Otro punto importante es la investigación, desarrollo tecnológico e innovación en el sector salud, que ha propiciado que distintas enfermedades que antes no eran curables hoy puedan ser enfrentadas mediante un tratamiento médico. También, se sabe que la riqueza de las personas, permite comprar mejores servicios de salud. 
+
+Una revisión suscinta de la literatura relevante de la materia nos sugiere:
+
++ Que existe una relación empírica entre el Producto Interno Bruto (PIB) de un país y la expectativa de vida de sus habitantes: a mayor PIB, mayor expectativa de vida (Preston, 1975).
+
++ Los factores que repercuten en un incremento de la esperanza de vida son: ambientales, relacionados con el estilo de vida, sanitarios y de salud (Shaw, Horrace et al., 2005).
+
++ En los países de renta baja, los determinantes para mejorar la expectativa de vida son: economía, tasa de alfabetización, estado alimenticio y régimen político (Lin et. al., 2012).
+
++ Los factores socioeconómicos y ecológicos contribuyen a explicar la esperanza de vida (Barlow & Vissandjée, 1999).
+
+En el *Cuadro 1*, se presenta un resumen de lo ya mencionado.
+
+<div align="center">
+**Cuadro 1: Resumen de la Revisión de la Literatura**
+
+|Autor|Variables Explicaticas|Relación|
+|-|-|-|
+|OCDE| Muerte Infantil| Negativa|
+|Preston| PIB| Positiva|
+|Shaw y Bowel| Ambientales, Estilos de Vida, Factores Sanitarios y de Salud| Positiva|
+|Lin| Economía, Tasa de alfabetización, Estado Alimenticio, Régimen Político| Positiva|
+|Barlow y Vissandjeé| Económicos, Ecológicos| Positiva|
+
+</div>
+
+Con los datos anteriores, se buscarán variables en la base de datos seleccionad que sirvan de proxy, con el fin de poner verificar si se cumple lo anterior.
+
+### Descripción de la base de datos.
+
+El Observatorio Mundial de la Salud (GHO, por sus siglas es inglés) es un repositorio dónde la Organización Mundial de la Salud (OMS) conserva y publica las estadísticas mundiales relacionadas con la salud. Uno de las bases de datos, relacionada con la experanza de vida, contiene datos observados durante los últimos 15 años (2000-2015) en 193 países. Los datos fueron compilados y retomados por la plataforma de [Kaggle](https://www.kaggle.com/kumarajarshi/life-expectancy-who), sitio de dónde descargué la base de datos.
+
+Originalmente, la base de datos contenía 22 variables y 2938 observaciones, correspondientes a los datos recolectados durante 15 años.
+
+```{r}
+lifeExpectancy <-read.csv("lifeExpectancy.csv")
+lifeExpectancy
+
+```
+
+Como el estudio de realizo a continuación es de corte transversal, me quedo con el año más reciente: 2015.
+
+```{r}
+lifeExpectancy<-lifeExpectancy[lifeExpectancy$Year == 2015,]
+lifeExpectancy
+```
+
+
+
+```{r}
+names(lifeExpectancy)
+```
+
+Finalmente, para limitarnos y evaluar lo sugerido por la literatura revisada, nos quedamos con las variables significativas para la esperanza de vida.
+
+```{r echo=TRUE, cols.print=10}
+lifeExpectancy <- lifeExpectancy[,c("Life.expectancy", "Adult.Mortality", "infant.deaths", 
+              "percentage.expenditure", "Schooling",
+              "GDP", "Population", "Income.composition.of.resources")]
+
+lifeExpectancy
+
+```
+
+### Modelo y sus resultados
+
+La base de datos empleada trata datos de tipo panel, por lo que nos quedamos con el año más reciente, que es 2015, a fin de obtener un **corte transversal** para el año señalado.
+
+#### Modelo
+
+
+$$ev= \textit{mortalidad adulta}+ \textit{muertes infantiles} + \textit{porcentaje del gasto} +   \textit{escolaridad} + \textit{PIB} + \textit{población} + \textit{composición de los ingresos}$$
+
+Dónde:
+
++ $ev$: expectativa de vida
+
+
+
+Removemos las entradas con datos "NA".
+
+```{r}
+lifeExpectancy<- lifeExpectancy[complete.cases(lifeExpectancy),]
+lifeExpectancy
+```
+
+Para ver el comportamiento de las variables entre ellas, se presenta un correleograma en la Figura 1.
+
+
+```{r message=FALSE, warning=FALSE}
+
+if(!require("ggplot2")){
+    install.packages("ggplot2")
+    library(ggplot2)
+}
+
+if(!require("GGally")){
+    install.packages("GGally")
+    library(GGally)
+}
+
+p00<-ggpairs(
+  lifeExpectancy, 
+  columns=c(1, 2, 3, 4, 5), 
+  title = "Figura 1. Correleograma: Parte 1",
+  columnLabels = c("Life Expectancy", "Adult Mortality", "Infant Mortality", "Age Expec", "Schooling")
+  )+ theme_bw()
+```
+
+<div align="center">
+```{r echo=FALSE}
+p00
+```
+</div>
+
+```{r message=FALSE, warning=FALSE, paged.print=TRUE}
+require(ggplot2)
+require(GGally)
+p01<-ggpairs(lifeExpectancy, columns=c(1, 6, 7, 8), title = "Figura 2. Correleograma: Parte 2", columnLabels = c("Life Expec", "PIB", "Población", "Composición Recursos")) +theme_bw()
+```
+
+<div align="center">
+```{r echo=FALSE}
+p01
+```
+</div>
+
+Al parecer, la *expectativa de vida* mantiene una relación lineal con:
+
++ mortalidad adulta; 
++ escolaridad;
++ composición del gasto. 
+
+A continuación, presentamos una gráfica individual para cada una de estas relaciones. 
+
+```{r}
+
+p1<-ggplot(
+  lifeExpectancy, aes(x=Adult.Mortality, y=Life.expectancy)
+  )+
+  geom_point(color="#9999CC")+
+  labs(
+  title = "Figura 3. Relación Mortalidad Adulta y Expectativa de Vida",
+  x = "Mortalidad Adulta",
+  y = "Expectativa de Vida"
+  )
+
+```
+
+
+<div align="center">
+```{r echo=FALSE}
+p1
+```
+</div>
+
+En esta gráfica se observa una relación lineal: mientras la mortalidad adulta aumenta, la expectativa de vida disminuye. Dado que la mortalidad adulta se define como la tasas de mortalidad de adultos de ambos sexos (probabilidad de morir entre 15 y 60 años por 1000 habitantes), entonces resulta razonable esta relación. 
+
+```{r}
+p2<-ggplot(
+  lifeExpectancy, aes(x=Schooling, y=Life.expectancy)
+  )+
+  geom_point(color="#9999CC")+
+  labs(
+  title = "Figura 4. Relación Escolaridad y Expectativa de Vida",
+  x = "Escolaridad",
+  y = "Expectativa de Vida"
+  )
+```
+
+<div align="center">
+```{r echo=FALSE}
+p2
+```
+</div>
+
+En la gráfica anterior, se observa que a mayores niveles de escolaridad, existen mayores expectativas de vida. Esto es consistente con lo mencionado en la literatura y la intuicion económica es que el gasto en educación puede generar que la población tome mayor conciencia del cuidado preventivo de su cuerpo, provocando que se enferme menos y aumente su expectativa de vida. 
+
+
+```{r}
+p3<-ggplot(
+  lifeExpectancy, aes(x=Income.composition.of.resources, y=Life.expectancy)
+  )+
+  geom_point(color="#66CC99")+
+  labs(
+  title = "Figura 5. Relación Composición de los Recursos y Expectativa de Vida",
+  x = "Composición de los recursos",
+  y = "Expectativa de Vida"
+  )
+```
+
+<div align="center">
+```{r echo=FALSE}
+p3
+```
+</div>
+
+De la gráfica anterior, se observa que la composición del ingreso de los recursos, que representa el Índice de Desarrollo Humano (IDH) en términos de composición del ingreso de los recursos (índice que va de 0 a 1), matiene una relación positiva con la expectativa de vida, misma que resulta natural, a mayores niveles de IDH, mayor la expectativa de vida.
+
+De las Figuras 1 a 5, se espera que las variables mortalidad adulta, expectativa de vida y composición de los recursos, sean relevante en el modelo.
+
+
+##### Normalizando los datos
+
+Antes de proceder al ajuste de modelo de regresión lineal simple, identificamos que nuestras variables de interés tienen escalas distintas. Por ello, con la intención de facilitar la comparación de los valores normalizados, se procede a normalizar los datos. 
+
+```{r echo=TRUE, message=FALSE}
+normalizar <- function(data){
+        for (j in 1:ncol(data)) {
+                data[,j] <- (data[,j]-min(data[,j]))/(max(data[,j])-min(data[,j]))
+        }
+        data
+}
+lifeExpectancy <- normalizar(lifeExpectancy)
+```
+
+##### Implementación del Modelo
+
+Una vez normalizados los datos, procedemos a implementar el modelo de regresión lineal. Escogemos las variables que encontramos en la base de datos, relacionadas con lo dispuesto por la literatura. 
+
+```{r message=FALSE, warning=FALSE}
+if(!require("jtools")){
+    install.packages("jtools")
+    library(jtools)
+}
+
+my_model <- lm(Life.expectancy ~ Adult.Mortality + infant.deaths + 
+                       percentage.expenditure  +Schooling +
+                       GDP + Population + Income.composition.of.resources , data = lifeExpectancy)
+
+if(!require("sandwich")){
+    install.packages("sandwich")
+    library(sandwich)
+}
+summary_model<-summ(my_model, vifs = TRUE,  robust = "HC1", digits = 3)
+```
+
+**Nota:** En este modelo, establecimos que los errores estándares de tipo "HC1" porque ese es default en la paquetería de R. 
+
+<div align="center">
+**Tabla 1: Resúmen del Modelo Regresión Lineal Implementado**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+summary_model
+```
+
+</div>
+De la *Tabla 1* se observa que:
+
++ el modelo muestra una R2 de 0.8839, indicando que captura casi el 90 por ciento de la variabilidad de la variable independiente; 
+
++ las variables **mortalidad adulta** y **composición de los recursos** son estadísticamente significativas. Esto es relevante, ya que se esperaba que muertes infantiles y escolaridad también lo fueran;
+
++ los factores de inflación de la varianza (VIF, por sus siglas en inglés), nos indican que los predictores podrían estar afectados por multicolinealidad; sobretodo dos variables: Escolaridad y Composición del Ingreso.
+
+```{r}
+#residual standard error
+summary(my_model)$sigma
+```
+
+
+```{r}
+
+confint(my_model)
+```
+
+Con el fin de simplificar la lectura de la *Tabla 1*, a continuación presento los muy conocidos “forest plots”, para presentar los resultados de esta regresión. Para ello, empleo la paquetería *jtools*. 
+
+
+```{r message=FALSE, warning=FALSE}
+if(!require("ggstance")){
+    install.packages("ggstance")
+    library(ggstance)
+}
+
+coeficient_plot<-plot_summs(my_model, scale = FALSE, robust= "HC3")
+```
+
+<div align="center">
+*Figura 7: Coeficientes e Intervalos de Confianza: No Escalado.*
+
+```{r echo=FALSE}
+coeficient_plot
+```
+
+</div>
+
+Usando el Gráfico 7, es más sencillo identifica qué variables son significativas: lo son mortalidad adutla y composición del ingreso ya el intervalo de confianza asociado a su coeficiente no contiene al cero.
+
+
+Con el fin de ser didácticos, en la *figura 8 *se presenta la distribución de los coeficientes.
+
+
+```{r message=FALSE, warning=FALSE}
+coeficient_plot_scale<-plot_summs(my_model, scale = FALSE, plot.distributions = TRUE)
+```
+
+<div align="center">
+*Figura 8: Coeficientes e Intervalos de Confianza: Escalado.*
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+coeficient_plot_scale
+```
+</div>
+
+##### Gráficas de los Efectos de los Predictores
+
+A continuación, se muestran distintas gráficas que presentan un resumen más intuitivo del modelo regresión implementado. En general, con estás gráficas, se puede sintetizar el rol del predictor seleccionado en la regresión lineal implementada. Solo se comentan los regresores que resultaron significativos, en el resto de los regresores resulta evidente, al menos de manera gráfica, porqué no resultaron significativos.
+
+> Predictor: Mortalidad Adulta
+
+```{r}
+effect_am<-effect_plot(my_model, pred = Adult.Mortality, interval = TRUE, plot.points = TRUE, main.title="Figura 9: Efecto de Mortalidad Adulta en la Esperanza de Vida", colors ="#000000", point.color = "#66CC99", rug=TRUE)
+```
+
+<div align="center">
+
+```{r echo=FALSE}
+effect_am
+```
+
+</div>
+
+Resulta intersante observa que al parecer hay dos grupos de países con comportamientos distintos, se esperaría que el nivel del PIB diferenciará entre países de renta alta y baja, pero esa variable resultó no significativa. Por lo que con la base de datos que se cuenta, no se puede establecer una variable dummy, para tratar de identificar estas diferencias.
+
+> Predictor: Muerte Infantil
+
+```{r}
+effect_mi<-effect_plot(my_model, pred = infant.deaths, interval = TRUE, plot.points = TRUE, point.color = "#66CC99", main.title="Figura 10: Efecto de las Muertes Infantiles en la Esperanza de Vida", rug=TRUE)
+```
+
+<div align="center">
+
+```{r echo=FALSE}
+effect_mi
+```
+</div>
+
+>Predictor: Porcentaje de gasto
+
+```{r}
+effect_expend<-effect_plot(my_model, pred = percentage.expenditure, interval = TRUE, plot.points = TRUE, point.color = "#66CC99", main.title="Figura 11: Efecto del Porcentaje de Gasto en la Esperanza de Vida", rug = TRUE)
+```
+<div align="center">
+```{r echo=FALSE}
+effect_expend
+```
+</div>
+>Predictor: Escolaridad
+
+```{r}
+effect_school<-effect_plot(my_model, pred = Schooling, interval = TRUE, plot.points = TRUE, point.color = "#66CC99", main.title="Figura 12: Efecto de la Escolaridad en la Esperanza de Vida", rug=TRUE)
+```
+
+
+<div align="center">
+
+```{r echo=FALSE}
+effect_school
+```
+</div>
+
+>Predictor: PIB
+
+```{r}
+effect_pib<-effect_plot(my_model, pred = GDP, interval = TRUE, plot.points = TRUE, point.color = "#66CC99", main.title="Figura 13: Efecto del PIB en la Esperanza de Vida", rug=TRUE)
+```
+
+<div align="center">
+
+```{r echo=FALSE}
+effect_pib
+```
+</div>
+
+
+>Predictor: Tamaño de la Población
+
+```{r}
+effect_population<-effect_plot(my_model, pred = Population, interval = TRUE, plot.points = TRUE, point.color = "#66CC99", main.title="Figura 14: Efecto del Tamaño de la Población en la Esperanza de Vida", rug=TRUE)
+```
+
+
+<div align="center">
+
+```{r echo=FALSE}
+effect_population
+```
+</div>
+
+>Predictor: Composición de los ingresos
+
+```{r}
+effect_income<-effect_plot(my_model, pred = Income.composition.of.resources, interval = TRUE, plot.points = TRUE, point.color = "#66CC99", rug=TRUE, main.title="Figura 15: Efecto de la Composición de los Ingresos en la Esperanza de Vida")
+
+```
+
+<div align="center">
+
+Esta relación resultó cómo se esperaba: a mayor IDH mayor expectativa de vida.
+
+```{r echo=FALSE}
+effect_income
+```
+</div>
+
+
+##### Análisis de Residuos
+
+Los *p-values*, en ocasiones, pueden ser engañosos, razón por la cuál procedemos a analizar otros componentes como los residuos, para asegurar que el modelo no presente problemas.
+
+Los residuos, básicamente, representan aquellas variaciones que el modelo implementado anteriormente, el modelo no explica. Con el análisis de los residuales, a continuación se buscará patrones que puedan significar que el modelo propuesto tiene (o no) problemas.
+
+En específico, se revisarán:
+
++ Los residuos versus valores rredichos, para identificar si hay patrones no lineales en los residuos analizados.
+
++ La prueba de normalidad (QQ-plot) de los residuos, para determinar si los residuos se distribuyen normalmente, grafico un QQ-plot. Si los residuos son más o menos parecidos a línea recta en este del QQ-plot, es una buena indicación de que normalmente se distribuyen.
+
++ La prueba de homocedasticidad, para probar el supuesto de igual varianza, conocida también como homocedasticidad; en palabras simples, este test permitirá identificar si los residuos ocupan el mismo espacio encima y debajo de la línea, a lo largo de toda la línea. 
+
++ Los residuos versus el apalancamiento, para encontrar posibles casos dentro del conjunto de datos que, si se elimina, afectarán al modelo; si se encuentran este tipo de casos, es conveniente considerar la inclusión o exclusión de las mismas. 
+
+```{r message=FALSE, warning=FALSE}
+
+if(!require("ggfortify")){
+    install.packages("ggfortify")
+    library(ggfortify)
+}
+assumptions_visual<-autoplot(my_model, colour = "skyblue3", smooth.colour = 'black', label.size = 3)+theme_bw()
+
+```
+
+
+<div align="center">
+
+*Figura 16: Pruebas de Supuestos: Visuales*
+```{r echo=FALSE, message=TRUE}
+assumptions_visual
+```
+
+</div>
+
+ 
+##### Tests
+
+Después de realizar el anális de residuso de manera visual, es conveniente realizar tests un poco más formales.
+
+
++ **Test de Breusch-Pagan**, para probar homocedasticidad.
+
+>$H_0$: Homoscedasticity. The errors have constant variance about the true model.
+
+>$H_1$: Heteroscedasticity. The errors have non-constant variance about the true model.
+
+```{r message=FALSE, warning=FALSE}
+
+if(!require("lmtest")){
+    install.packages("lmtest")
+    library(lmtest)
+}
+
+bptest(my_model)
+```
+
+Para el modelo que implementamos, se observa un valor grande en el *p-value*, por lo que se cuenta conevidencia suficiente decir que los errores son homocedasticos.
+
++ **Test de Shapiro-Wilk**
+
+Los histogramas y los QQ-plots nos ofrecen una representación visual agradable de la la distribución de los residuos; sin embargo, si estamos interesados en un test formal, es conveniente emplear el test de *Shapiro-Wilk*.
+
+```{r}
+shapiro.test(resid(my_model))
+```
+
+Como el *p-value* es pequeño, se indica que no hay evidencia suficiente para decir que los errores se distribuyen conforme a una distribución normal. Este resultado es importante, ya que nos indica que no hay evidencia suficiente para asegurar que se cumple uno de los supuestos clave del modelo de Mínimos Cuadrados Ordinarios (MCO). Se acepta que esto no es un problema menor.
+
+
+
++ **Evaluando el supuesto de independencia:autocorrelación**
+
+El test de Durbin Watson evalua si los errores estan autocorrelacionados entre ellos. La hipótesis nula establece que no están es autocorrelacionados. 
+```{r}
+dwtest(my_model)
+```
+
+Como el *p-value* es mayor a 0.05, tenemos evidencia suficiente para aceptar la hipótesis nula; es decir: los errores no están autocorrelacionados.
+
+### Conclusiones
+
+En 2015, la expectativa de vida en distintos países se pudo explicar por la mortalidad adulta y la composición de los recursos, sin ser significativa ni la escolaridad ni la muerte infantil; esto se puede interpretar de la siguiente manera:
+
+> Los sistemas de salud aún no son lo suficientemente maduros como para asegurar que un niño (que no murió durante la infancia) pueda alcanzar una esperanza de vida alta; es decir, el no morir durante la etapa de la infancia, no asegura que la vida del niño sea larga. 
+
+Esto posiblemente se puede explicar por la distintas características de violencia entre los distintos países. 
+
+Por otra parte, que la escolaridad no sea significativa puede explicarse con el hecho de que el aumento en la expectativa de vida es generalizado, no así únicamente propio de países con mayores niveles educativos.
+
+Finalmente, la propuesta de política pública es identificar qué provoca que las personas que superan la niñez no tengan una probabilidad alta de alcanzar una vida larga. 
+
+### Referencias
+
++ **1.** Healt indicator disponible en https://www.oecd.org/berlin/47570143.pdf
++ **2.** Preston, S. H (1975). The Changing Relation between Mortality and Level of Economic
+Development. Population Studies 29 (2): 231.
++ **3.**  Shaw, J., Horrace, W., Vogel, R. (2005). The Determinats of Life Expectancy: An Analysis of the
+OECD Health Data. Southern Economic Journal, 71(4), 768- 783.
++ **4.** Lin, Chen, Chien, Chuan (2012): Political and social determiannts of life expectancy in less
+development countries: a longitudina study. BMC Public Health, 12:85.
++ **5.**  Barlow, R., Vissandjée, B. (1999). Determinants of National Life Expectancy. Canadian Journal of
+Development Studies, 20:1, 9-29.
+
+
+</div>
+
